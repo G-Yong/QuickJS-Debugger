@@ -1,103 +1,103 @@
+**English** | [中文](./README.zh-CN.md)
+
 # QuickJS CDP Debugger
 
-基于 Chrome DevTools Protocol (CDP) 的 QuickJS 脚本调试器，支持在 VS Code 中对自定义 QuickJS 引擎进行断点调试。
+A QuickJS script debugger based on the Chrome DevTools Protocol (CDP), enabling breakpoint debugging of a custom QuickJS engine in VS Code.
 
 ![Debug in VSCode](doc/images/debugInVSCode.png)
 
-## 项目结构
+## Project Structure
 
 ```
 jsTest/
-├── CMakeLists.txt              # 顶层构建文件
+├── CMakeLists.txt              # Top-level build file
 ├── README.md
-├── test.js                     # 测试脚本
-├── quickjs/                    # QuickJS 引擎（已修改，含调试 API）
-│   ├── quickjs.h/c             #   核心引擎
+├── test.js                     # Test script
+├── quickjs/                    # QuickJS engine (modified, with debug API)
+│   ├── quickjs.h/c             #   Core engine
 │   └── ...
-├── debugger/                   # CDP 调试器
-│   ├── CMakeLists.txt          #   调试器构建文件
+├── debugger/                   # CDP debugger
+│   ├── CMakeLists.txt          #   Debugger build file
 │   └── src/
-│       ├── main.cpp            #   入口：创建 QuickJS 运行时 + 启动调试服务
-│       ├── websocket_server.h/cpp  # WebSocket 服务器（端口 9229）
-│       ├── cdp_handler.h/cpp   #   CDP 协议消息分发与处理
-│       ├── debug_session.h/cpp #   调试核心：断点、单步、暂停、变量捕获
-│       ├── json.h              #   轻量 JSON 解析/序列化
-│       └── platform.h          #   跨平台 Socket 抽象
+│       ├── main.cpp            #   Entry: creates QuickJS runtime + starts debug service
+│       ├── websocket_server.h/cpp  # WebSocket server (port 9229)
+│       ├── cdp_handler.h/cpp   #   CDP message dispatch & handling
+│       ├── debug_session.h/cpp #   Debug core: breakpoints, stepping, pause, variable capture
+│       ├── json.h              #   Lightweight JSON parse/serialize
+│       └── platform.h          #   Cross-platform socket abstraction
 ├── compat/
 │   └── msvc/
-│       └── stdatomic.h         # MSVC < 17.5 的 C11 stdatomic 兼容垫片
+│       └── stdatomic.h         # C11 stdatomic shim for MSVC < 17.5
 └── .vscode/
-    └── launch.json             # VS Code 调试 attach 配置
+    └── launch.json             # VS Code debug attach configuration
 ```
 
-## 架构概览
+## Architecture Overview
 
 ```
-  VS Code (DevTools 前端)
+  VS Code (DevTools Frontend)
        │
        │  WebSocket (ws://127.0.0.1:9229/debug)
        ▼
   ┌─────────────────┐
-  │ WebSocketServer │  接受连接、WebSocket 握手、帧编解码
+  │ WebSocketServer │  Accept connections, WebSocket handshake, frame encode/decode
   └────────┬────────┘
            │
   ┌────────▼────────┐
-  │   CDPHandler    │  解析 CDP JSON 消息，分发到对应 domain 处理
+  │   CDPHandler    │  Parse CDP JSON messages, dispatch to domain handlers
   └────────┬────────┘
            │
   ┌────────▼────────┐
-  │  DebugSession   │  调试核心逻辑
-  │  ─ 断点管理      │  set/remove breakpoint
-  │  ─ 单步控制      │  step over / into / out / continue
-  │  ─ 暂停/恢复     │  pause / resume
-  │  ─ 调用栈捕获    │  capture call frames + scope variables
-  │  ─ op_handler   │  每条 JS 指令回调（检查断点/单步）
+  │  DebugSession   │  Core debug logic
+  │  - Breakpoints  │  set/remove breakpoint
+  │  - Stepping     │  step over / into / out / continue
+  │  - Pause/Resume │  pause / resume
+  │  - Call Stack   │  capture call frames + scope variables
+  │  - op_handler   │  per-JS-instruction callback (check breakpoint/step)
   └────────┬────────┘
            │
   ┌────────▼────────┐
-  │   QuickJS 引擎   │  执行 JS 脚本，通过调试 API 回调
-  │  ─ JS_SetOPChangedHandler()    每条 opcode 触发回调
-  │  ─ JS_GetStackDepth()          获取调用栈深度
-  │  ─ JS_GetLocalVariablesAtLevel()  获取指定层级局部变量
-  │  ─ JS_FreeLocalVariables()     释放变量数组
+  │  QuickJS Engine │  Execute JS scripts, trigger debug API callbacks
+  │  - JS_SetOPChangedHandler()       callback on every opcode
+  │  - JS_GetStackDepth()             get call stack depth
+  │  - JS_GetLocalVariablesAtLevel()  get locals at a given frame level
+  │  - JS_FreeLocalVariables()        free variable array
   └─────────────────┘
 ```
 
-### 调试流程
+### Debug Flow
 
-1. `qjs_debug` 启动 → 加载脚本 → 在端口 9229 启动 WebSocket 服务，等待调试器连接
-2. VS Code 通过 `launch.json` 的 attach 配置连接到 `ws://127.0.0.1:9229/debug`
-3. VS Code 发送 `Debugger.enable`、`Debugger.setBreakpointByUrl` 等 CDP 命令
-4. `CDPHandler` 解析消息并调用 `DebugSession` 设置断点
-5. `Runtime.runIfWaitingForDebugger` 解除阻塞，开始执行脚本
-6. QuickJS 每执行一条 opcode 触发 `op_handler` → 检查断点/单步条件
-7. 命中断点时 `do_pause()` 捕获调用栈和变量，发送 `Debugger.paused` 事件，阻塞等待
-8. VS Code 收到暂停事件后显示断点位置和变量；用户操作 continue/step 发送对应 CDP 命令
-9. `DebugSession` 收到命令后解除阻塞，脚本继续执行
+1. `qjs_debug` starts → loads script → starts WebSocket server on port 9229, waits for debugger connection
+2. VS Code connects to `ws://127.0.0.1:9229/debug` via the attach configuration in `launch.json`
+3. VS Code sends CDP commands such as `Debugger.enable` and `Debugger.setBreakpointByUrl`
+4. `CDPHandler` parses messages and calls `DebugSession` to set breakpoints
+5. `Runtime.runIfWaitingForDebugger` unblocks execution, script starts running
+6. QuickJS triggers `op_handler` on every opcode → checks breakpoint/step conditions
+7. When a breakpoint is hit, `do_pause()` captures the call stack and variables, sends a `Debugger.paused` event, and blocks
+8. VS Code receives the paused event and displays the breakpoint location and variables; user actions (continue/step) send corresponding CDP commands
+9. `DebugSession` receives the command and unblocks, script resumes execution
 
-## 编译
+## Building
 
-### 环境要求
+### Requirements
 
-| 平台    | 编译器                         | 其它        |
-|---------|-------------------------------|------------|
-| Windows | MSVC (VS2019+) 或 MinGW-w64   | CMake ≥ 3.10 |
-| Linux   | GCC 或 Clang                   | CMake ≥ 3.10 |
+| Platform | Compiler                      | Other       |
+|----------|-------------------------------|-------------|
+| Windows  | MSVC (VS2019+) or MinGW-w64  | CMake ≥ 3.10 |
+| Linux    | GCC or Clang                  | CMake ≥ 3.10 |
 
 ### Windows (MSVC)
 
-```powershell
-# 1. 打开 VS 开发者命令行（或手动初始化环境）
-& "D:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+Open a **Developer Command Prompt for VS** (or initialize the environment manually), then:
 
-# 2. 配置 + 编译
+```cmd
 mkdir build
 cd build
 cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Debug
 nmake
 ```
 
-编译产物在 `build/debugger/qjs_debug.exe`。
+The output binary is `build/debugger/qjs_debug.exe`.
 
 ### Windows (MinGW)
 
@@ -115,37 +115,37 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug
 make -j$(nproc)
 ```
 
-### 关键构建选项说明
+### Key Build Notes
 
-- **MSVC < 17.5**：自动注入 `compat/msvc/stdatomic.h` 垫片解决缺失 C11 `<stdatomic.h>` 的问题
-- **GCC / Clang / MinGW**：自动定义 `EMSCRIPTEN` 宏，强制 QuickJS 中 `DIRECT_DISPATCH=0`，确保 `JS_SetOPChangedHandler` 回调在每条指令上触发（若 `DIRECT_DISPATCH=1`，computed-goto 会跳过 op_handler 调用）
+- **MSVC < 17.5**: Automatically injects the `compat/msvc/stdatomic.h` shim to resolve the missing C11 `<stdatomic.h>`.
+- **GCC / Clang / MinGW**: Automatically defines the `EMSCRIPTEN` macro to force `DIRECT_DISPATCH=0` in QuickJS, ensuring `JS_SetOPChangedHandler` fires on every instruction (when `DIRECT_DISPATCH=1`, computed-goto skips the op_handler call).
 
-## 运行
+## Usage
 
-### 基本运行
+### Basic Usage
 
 ```bash
-# 启动调试器，等待 VS Code 连接后再执行脚本
+# Start debugger, wait for VS Code to connect before executing the script
 ./build/debugger/qjs_debug --inspect-brk test.js
 
-# 启动调试器，脚本直接开始执行（仅断点生效）
+# Start debugger, script runs immediately (only breakpoints are active)
 ./build/debugger/qjs_debug --inspect test.js
 ```
 
-启动后会输出：
+Output on startup:
 ```
 Debugger listening on ws://127.0.0.1:9229/debug
 Waiting for debugger to connect...
 ```
 
-### 在 VS Code 中调试
+### Debugging in VS Code
 
-1. 启动 `qjs_debug`：
+1. Start `qjs_debug`:
    ```bash
    ./build/debugger/qjs_debug --inspect-brk test.js
    ```
 
-2. 在 VS Code 中打开工作区，确保 `.vscode/launch.json` 包含：
+2. Open the workspace in VS Code and ensure `.vscode/launch.json` contains:
    ```json
    {
        "configurations": [{
@@ -161,70 +161,70 @@ Waiting for debugger to connect...
    }
    ```
 
-3. 在 `test.js` 中设置断点
+3. Set breakpoints in `test.js`
 
-4. 按 `F5` 选择 "Attach to QuickJS" 启动调试
+4. Press `F5` and select "Attach to QuickJS"
 
-5. VS Code 连接后脚本开始执行，命中断点时自动暂停，可查看变量、调用栈，支持单步等操作
+5. Once VS Code connects, the script begins execution. It pauses at breakpoints automatically, allowing you to inspect variables, view the call stack, and step through code.
 
-### 命令行参数
+### Command-Line Arguments
 
-| 参数             | 说明                                      |
-|-----------------|-------------------------------------------|
-| `--inspect`      | 启动调试服务，脚本立即执行                    |
-| `--inspect-brk`  | 启动调试服务，等待调试器连接并发送 resume 后才执行 |
-| `--port <N>`     | 指定 WebSocket 监听端口（默认 9229）          |
+| Argument          | Description                                                        |
+|-------------------|--------------------------------------------------------------------|
+| `--inspect`       | Start debug service; script runs immediately                       |
+| `--inspect-brk`   | Start debug service; wait for debugger to connect and resume       |
+| `--port <N>`      | Specify WebSocket listen port (default: 9229)                      |
 
-### Chrome DevTools 调试
+### Debugging with Chrome DevTools
 
-除 VS Code 外，也可用 Chrome 调试：
+In addition to VS Code, you can also debug with Chrome:
 
-1. 启动 `qjs_debug --inspect-brk test.js`
-2. 打开 Chrome 浏览器，访问 `chrome://inspect`
-3. 在 "Remote Target" 中找到并点击 "inspect"
+1. Start `qjs_debug --inspect-brk test.js`
+2. Open Chrome and navigate to `chrome://inspect`
+3. Find the target under "Remote Target" and click "inspect"
 
-## 支持的 CDP 命令
+## Supported CDP Commands
 
-| Domain    | 方法                              |
-|-----------|----------------------------------|
-| Debugger  | `enable` / `disable`             |
-| Debugger  | `setBreakpointByUrl`             |
-| Debugger  | `removeBreakpoint`               |
-| Debugger  | `setBreakpointsActive`           |
-| Debugger  | `getScriptSource`                |
-| Debugger  | `resume`                         |
+| Domain    | Methods                           |
+|-----------|-----------------------------------|
+| Debugger  | `enable` / `disable`              |
+| Debugger  | `setBreakpointByUrl`              |
+| Debugger  | `removeBreakpoint`                |
+| Debugger  | `setBreakpointsActive`            |
+| Debugger  | `getScriptSource`                 |
+| Debugger  | `resume`                          |
 | Debugger  | `stepOver` / `stepInto` / `stepOut` |
-| Debugger  | `pause`                          |
-| Debugger  | `setPauseOnExceptions`           |
-| Runtime   | `enable`                         |
-| Runtime   | `runIfWaitingForDebugger`        |
-| Runtime   | `getProperties`                  |
-| Runtime   | `evaluate`                       |
-| Profiler  | `enable` / `disable`             |
+| Debugger  | `pause`                           |
+| Debugger  | `setPauseOnExceptions`            |
+| Runtime   | `enable`                          |
+| Runtime   | `runIfWaitingForDebugger`         |
+| Runtime   | `getProperties`                   |
+| Runtime   | `evaluate`                        |
+| Profiler  | `enable` / `disable`              |
 
-## QuickJS 调试 API
+## QuickJS Debug API
 
-本项目依赖的 QuickJS 扩展 API（在 `quickjs.h` 中声明）：
+Extended QuickJS APIs this project depends on (declared in `quickjs.h`):
 
 ```c
-// 每条 opcode 执行时的回调
+// Callback on every opcode execution
 typedef int JSOPChangedHandler(JSContext *ctx, uint8_t op,
     const char *filename, const char *funcname,
     int line, int col, void *opaque);
 void JS_SetOPChangedHandler(JSContext *ctx, JSOPChangedHandler *cb, void *opaque);
 
-// 获取当前调用栈深度
+// Get current call stack depth
 int JS_GetStackDepth(JSContext *ctx);
 
-// 获取指定栈帧层级的局部变量
+// Get local variables at a given stack frame level
 JSLocalVar *JS_GetLocalVariablesAtLevel(JSContext *ctx, int level, int *pcount);
 
-// 释放 JS_GetLocalVariablesAtLevel 返回的变量数组
+// Free the variable array returned by JS_GetLocalVariablesAtLevel
 void JS_FreeLocalVariables(JSContext *ctx, JSLocalVar *vars, int count);
 ```
 
-## 注意事项
+## Notes
 
-- **不要修改 `quickjs/` 目录下的源码**，所有适配通过外部编译选项和兼容层实现
-- Windows 上路径大小写不敏感，调试器内部已做统一处理
-- `--inspect-brk` 模式下程序会阻塞直到调试器连接并发送 `runIfWaitingForDebugger`
+- **Do not modify source files under `quickjs/`** — all adaptations are done via external compile options and compatibility layers.
+- On Windows, file paths are case-insensitive; the debugger handles normalization internally.
+- In `--inspect-brk` mode, the program blocks until a debugger connects and sends `runIfWaitingForDebugger`.
