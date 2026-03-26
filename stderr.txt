@@ -1,0 +1,7 @@
+[DBG] Script absolute path: C:/Users/Administrator/Desktop/jsTest/test.js
+[WS] SHA-1 hex: a1361ff30f2e37d76658b42c80f6b4b2c2630c26
+[WS] SHA-1 self-test: got='oTYf8w8uN9dmWLQsgPa0ssJjDCY=' expected='s3pPLMBiTxaQ9kYGzzhZRbK+xOo=' MISMATCH!
+Debugger listening on ws://127.0.0.1:9229/debug
+Open chrome://inspect in Chrome, or:
+  devtools://devtools/bundled/js_app.html?experiments=true&v8only=true&ws=127.0.0.1:9229/debug
+Waiting for debugger to connect...
