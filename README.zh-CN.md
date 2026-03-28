@@ -120,7 +120,7 @@ make -j$(nproc)
 ### 关键构建选项说明
 
 - **MSVC < 17.5**：自动注入 `compat/msvc/stdatomic.h` 垫片解决缺失 C11 `<stdatomic.h>` 的问题
-- **GCC / Clang / MinGW**：自动定义 `EMSCRIPTEN` 宏，强制 QuickJS 中 `DIRECT_DISPATCH=0`，确保 `JS_SetOPChangedHandler` 回调在每条指令上触发（若 `DIRECT_DISPATCH=1`，computed-goto 会跳过 op_handler 调用）
+- **`QJS_ENABLE_DEBUGGER`**：顶层 `CMakeLists.txt` 启用该选项，所有调试钩子都通过此编译时宏控制。启用后会自动禁用 QuickJS 解释器的 `DIRECT_DISPATCH`，确保 `JS_SetOPChangedHandler` 回调在每条指令上触发。单独编译 QuickJS 不开启此选项时，不引入任何调试开销。
 
 ## 运行
 
@@ -208,8 +208,10 @@ Waiting for debugger to connect...
 
 本项目依赖的 QuickJS 扩展 API（在 `quickjs.h` 中声明）：
 
+所有调试 API 均由编译时宏 `QJS_ENABLE_DEBUGGER` 控制。
+
 ```c
-// 每条 opcode 执行时的回调
+// 每条 opcode 执行时的回调（返回 0 继续执行，非零则抛出异常）
 typedef int JSOPChangedHandler(JSContext *ctx, uint8_t op,
     const char *filename, const char *funcname,
     int line, int col, void *opaque);
@@ -219,14 +221,14 @@ void JS_SetOPChangedHandler(JSContext *ctx, JSOPChangedHandler *cb, void *opaque
 int JS_GetStackDepth(JSContext *ctx);
 
 // 获取指定栈帧层级的局部变量
-JSLocalVar *JS_GetLocalVariablesAtLevel(JSContext *ctx, int level, int *pcount);
+JSDebugLocalVar *JS_GetLocalVariablesAtLevel(JSContext *ctx, int level, int *pcount);
 
 // 释放 JS_GetLocalVariablesAtLevel 返回的变量数组
-void JS_FreeLocalVariables(JSContext *ctx, JSLocalVar *vars, int count);
+void JS_FreeLocalVariables(JSContext *ctx, JSDebugLocalVar *vars, int count);
 ```
 
 ## 注意事项
 
-- **不要修改 `quickjs/` 目录下的源码**，所有适配通过外部编译选项和兼容层实现
+- `quickjs/` 目录包含 [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) 的修改版本，增加了调试接口（[PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)）。所有调试代码由 `QJS_ENABLE_DEBUGGER` 宏控制，不开启时零开销。
 - Windows 上路径大小写不敏感，调试器内部已做统一处理
 - `--inspect-brk` 模式下程序会阻塞直到调试器连接并发送 `runIfWaitingForDebugger`

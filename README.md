@@ -118,7 +118,7 @@ make -j$(nproc)
 ### Key Build Notes
 
 - **MSVC < 17.5**: Automatically injects the `compat/msvc/stdatomic.h` shim to resolve the missing C11 `<stdatomic.h>`.
-- **GCC / Clang / MinGW**: Automatically defines the `EMSCRIPTEN` macro to force `DIRECT_DISPATCH=0` in QuickJS, ensuring `JS_SetOPChangedHandler` fires on every instruction (when `DIRECT_DISPATCH=1`, computed-goto skips the op_handler call).
+- **`QJS_ENABLE_DEBUGGER`**: The top-level `CMakeLists.txt` enables this option, which gates all debug hooks at compile time. It also automatically disables `DIRECT_DISPATCH` in the QuickJS interpreter, ensuring `JS_SetOPChangedHandler` fires on every instruction. When building QuickJS standalone without this flag, no debugging overhead is incurred.
 
 ## Usage
 
@@ -206,8 +206,10 @@ In addition to VS Code, you can also debug with Chrome:
 
 Extended QuickJS APIs this project depends on (declared in `quickjs.h`):
 
+All debug APIs are gated by the `QJS_ENABLE_DEBUGGER` compile-time macro.
+
 ```c
-// Callback on every opcode execution
+// Callback on every opcode execution (return 0 to continue, non-zero to raise exception)
 typedef int JSOPChangedHandler(JSContext *ctx, uint8_t op,
     const char *filename, const char *funcname,
     int line, int col, void *opaque);
@@ -217,14 +219,14 @@ void JS_SetOPChangedHandler(JSContext *ctx, JSOPChangedHandler *cb, void *opaque
 int JS_GetStackDepth(JSContext *ctx);
 
 // Get local variables at a given stack frame level
-JSLocalVar *JS_GetLocalVariablesAtLevel(JSContext *ctx, int level, int *pcount);
+JSDebugLocalVar *JS_GetLocalVariablesAtLevel(JSContext *ctx, int level, int *pcount);
 
 // Free the variable array returned by JS_GetLocalVariablesAtLevel
-void JS_FreeLocalVariables(JSContext *ctx, JSLocalVar *vars, int count);
+void JS_FreeLocalVariables(JSContext *ctx, JSDebugLocalVar *vars, int count);
 ```
 
 ## Notes
 
-- **Do not modify source files under `quickjs/`** — all adaptations are done via external compile options and compatibility layers.
+- The `quickjs/` directory contains a modified fork of [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) with the debug interface additions ([PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)). All debug code is gated by `QJS_ENABLE_DEBUGGER` so there is zero overhead when the flag is not set.
 - On Windows, file paths are case-insensitive; the debugger handles normalization internally.
 - In `--inspect-brk` mode, the program blocks until a debugger connects and sends `runIfWaitingForDebugger`.

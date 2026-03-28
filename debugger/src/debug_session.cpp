@@ -513,7 +513,7 @@ void DebugSession::capture_frames(JSContext* ctx, const char* filename,
 
         // Local scope - capture variables using QuickJS API
         int var_count = 0;
-        JSLocalVar* vars = JS_GetLocalVariablesAtLevel(ctx, level, &var_count);
+        JSDebugLocalVar* vars = JS_GetLocalVariablesAtLevel(ctx, level, &var_count);
         if (vars && var_count > 0) {
             auto local_props = json::Value::array();
             for (int v = 0; v < var_count; v++) {
@@ -664,7 +664,7 @@ void DebugSession::do_pause(JSContext* ctx, const char* filename,
                     // Try local variable lookup first
                     bool found = false;
                     int var_count = 0;
-                    JSLocalVar* vars = JS_GetLocalVariablesAtLevel(ctx, frame_level, &var_count);
+                    JSDebugLocalVar* vars = JS_GetLocalVariablesAtLevel(ctx, frame_level, &var_count);
                     if (vars && var_count > 0) {
                         for (int v = 0; v < var_count; v++) {
                             if (vars[v].name && pending_eval_->expression == vars[v].name) {
