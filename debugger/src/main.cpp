@@ -306,8 +306,8 @@ int main(int argc, char* argv[]) {
         session.wait_for_debugger();
     }
 
-    // Register the OP handler for debugging
-    JS_SetOPChangedHandler(ctx, DebugSession::op_handler, &session);
+    // Register the bytecode trace handler for debugging
+    JS_SetBytecodeTraceHandler(ctx, DebugSession::bytecode_trace_handler, &session);
 
     // Evaluate the script
     fprintf(stderr, "[Engine] Executing %s ...\n", script_file.c_str());

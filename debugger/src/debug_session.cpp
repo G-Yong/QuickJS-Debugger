@@ -775,10 +775,10 @@ json::Value DebugSession::evaluate_on_call_frame(const std::string& call_frame_i
 }
 
 // ============================================================
-// OP Handler
+// Bytecode Trace Handler
 // ============================================================
-
-int DebugSession::op_handler(JSContext *ctx, uint8_t op,
+//
+int DebugSession::bytecode_trace_handler(JSContext *ctx, uint8_t op,
                                const char *filename, const char *funcname,
                                int line, int col, void *opaque) {
 

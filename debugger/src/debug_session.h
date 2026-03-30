@@ -85,8 +85,8 @@ public:
     json::Value evaluate_on_call_frame(const std::string& call_frame_id,
                                        const std::string& expression);
 
-    // --- QuickJS OP handler ---
-    static int op_handler(JSContext *ctx, uint8_t op,
+    // --- QuickJS bytecode trace handler ---
+    static int bytecode_trace_handler(JSContext *ctx, uint8_t op,
                           const char *filename, const char *funcname,
                           int line, int col, void *opaque);
 
