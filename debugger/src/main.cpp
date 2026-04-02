@@ -209,14 +209,14 @@ int main(int argc, char* argv[]) {
     DebugSession session;
     g_session = &session;
 
-    JSContext* ctx = JS_NewDebugContext(rt,
-        DebugSession::debug_break_handler);
-    JS_SetContextOpaque(ctx, &session);
+    JSContext* ctx = JS_NewContext(rt);
     if (!ctx) {
         fprintf(stderr, "Error: Cannot create QuickJS context\n");
         JS_FreeRuntime(rt);
         return 1;
     }
+    JS_SetDebugBreakHandler(ctx, DebugSession::debug_break_handler);
+    JS_SetContextOpaque(ctx, &session);
 
     // Setup console
     setup_console(ctx);

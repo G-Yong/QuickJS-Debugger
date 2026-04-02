@@ -58,7 +58,7 @@ jsTest/
            │
   ┌────────▼────────┐
   │   QuickJS 引擎   │  执行 JS 脚本，通过调试回调触发
-  │  ─ JS_NewDebugContext()          创建调试上下文
+  │  ─ JS_SetDebugBreakHandler()     设置/清除调试断点回调
   │  ─ OP_debug opcode               语句边界触发回调
   │  ─ JS_GetStackDepth()            获取调用栈深度
   │  ─ JS_GetLocalVariablesAtLevel() 获取指定层级局部变量
@@ -121,7 +121,7 @@ make -j$(nproc)
 ### 关键构建选项说明
 
 - **MSVC < 17.5**：自动注入 `compat/msvc/stdatomic.h` 垫片解决缺失 C11 `<stdatomic.h>` 的问题
-- **无需编译时宏**：调试接口使用专用的 `OP_debug` 操作码，仅在通过 `JS_NewDebugContext()` 创建调试上下文时才会发射。使用普通 `JS_NewContext()` 创建的上下文不会产生调试操作码，零开销。`DIRECT_DISPATCH`（computed goto）保持完全启用。
+- **无需编译时宏**：调试接口使用专用的 `OP_debug` 操作码，始终在语句边界发射。未设置处理程序时运行时开销几乎为零（仅一次 `unlikely` 分支判断）。可随时通过 `JS_SetDebugBreakHandler()` 挂载处理程序。`DIRECT_DISPATCH`（computed goto）保持完全启用。
 
 ## 运行
 
@@ -218,9 +218,9 @@ typedef int JSDebugBreakFunc(JSContext *ctx,
                              const char *filename, const char *funcname,
                              int line, int col);
 
-// 创建调试上下文。在此上下文中编译的字节码会在语句边界包含 OP_debug 操作码。
-// 执行到 OP_debug 时会调用 |cb|。传入 NULL 则禁用调试。
-JSContext *JS_NewDebugContext(JSRuntime *rt, JSDebugBreakFunc *cb);
+// 设置（或清除）调试断点处理程序。当解释器执行到 OP_debug 操作码且已设置处理程序时，
+// 将调用该处理程序。传入 NULL 则禁用。适用于任何上下文（JS_NewContext、JS_NewContextRaw 等）。
+void JS_SetDebugBreakHandler(JSContext *ctx, JSDebugBreakFunc *cb);
 
 // 获取当前调用栈深度
 int JS_GetStackDepth(JSContext *ctx);
@@ -234,6 +234,6 @@ void JS_FreeLocalVariables(JSContext *ctx, JSDebugLocalVar *vars, int count);
 
 ## 注意事项
 
-- `quickjs/` 目录包含 [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) 的修改版本，增加了调试接口（[PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)）。调试插桩（`OP_debug` 操作码）仅在使用 `JS_NewDebugContext()` 时才会发射，普通上下文零开销。
+- `quickjs/` 目录包含 [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) 的修改版本，增加了调试接口（[PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)）。`OP_debug` 操作码始终发射，未设置处理程序时运行时开销几乎为零。
 - Windows 上路径大小写不敏感，调试器内部已做统一处理
 - `--inspect-brk` 模式下程序会阻塞直到调试器连接并发送 `runIfWaitingForDebugger`

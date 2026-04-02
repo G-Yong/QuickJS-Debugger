@@ -58,7 +58,7 @@ jsTest/
            │
   ┌────────▼────────┐
   │  QuickJS Engine │  Execute JS scripts, trigger debug callbacks
-  │  - JS_NewDebugContext()           create debug-enabled context
+  │  - JS_SetDebugBreakHandler()      set/clear debug break callback
   │  - OP_debug opcode                fires callback at statement boundaries
   │  - JS_GetStackDepth()             get call stack depth
   │  - JS_GetLocalVariablesAtLevel()  get locals at a given frame level
@@ -119,7 +119,7 @@ make -j$(nproc)
 ### Key Build Notes
 
 - **MSVC < 17.5**: Automatically injects the `compat/msvc/stdatomic.h` shim to resolve the missing C11 `<stdatomic.h>`.
-- **No compile-time flags required**: The debug interface uses a dedicated `OP_debug` opcode that is only emitted when a debug context is created via `JS_NewDebugContext()`. Regular contexts created with `JS_NewContext()` produce no debug opcodes and incur zero overhead. `DIRECT_DISPATCH` (computed goto) remains fully enabled.
+- **No compile-time flags required**: The debug interface uses a dedicated `OP_debug` opcode that is always emitted at statement boundaries. The runtime cost is virtually zero when no handler is set (a single `unlikely` branch). Attach a handler at any time via `JS_SetDebugBreakHandler()`. `DIRECT_DISPATCH` (computed goto) remains fully enabled.
 
 ## Usage
 
@@ -216,9 +216,10 @@ typedef int JSDebugBreakFunc(JSContext *ctx,
                              const char *filename, const char *funcname,
                              int line, int col);
 
-// Create a debug-enabled context. Bytecode compiled in this context will
-// contain OP_debug opcodes at statement boundaries. When hit, |cb| is called.
-JSContext *JS_NewDebugContext(JSRuntime *rt, JSDebugBreakFunc *cb);
+// Set (or clear) the debug break handler. When the interpreter hits an
+// OP_debug opcode and a handler is set, it is called. Pass NULL to disable.
+// Works with any context (JS_NewContext, JS_NewContextRaw, etc.).
+void JS_SetDebugBreakHandler(JSContext *ctx, JSDebugBreakFunc *cb);
 
 // Get current call stack depth
 int JS_GetStackDepth(JSContext *ctx);
@@ -232,6 +233,6 @@ void JS_FreeLocalVariables(JSContext *ctx, JSDebugLocalVar *vars, int count);
 
 ## Notes
 
-- The `quickjs/` directory contains a modified fork of [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) with the debug interface additions ([PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)). Debug instrumentation (`OP_debug` opcodes) is only emitted when using `JS_NewDebugContext()`; regular contexts have zero overhead.
+- The `quickjs/` directory contains a modified fork of [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) with the debug interface additions ([PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)). `OP_debug` opcodes are always emitted; the runtime cost is virtually zero when no handler is set.
 - On Windows, file paths are case-insensitive; the debugger handles normalization internally.
 - In `--inspect-brk` mode, the program blocks until a debugger connects and sends `runIfWaitingForDebugger`.
