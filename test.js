@@ -2,6 +2,7 @@ function add(a, b) {
     var sum = a + b;
     console.log("sum =", sum);
     return sum;
+    var unused = "This variable is never used";
 }
 
 var x = 10;
