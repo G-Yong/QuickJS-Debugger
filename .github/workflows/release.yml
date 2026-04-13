@@ -29,7 +29,7 @@ jobs:
     - name: Package
       run: |
         cd build/debugger
-        tar czf qjs_debug-linux-x86_64.tar.gz qjs_debug ../test.js
+        tar czf qjs_debug-linux-x86_64.tar.gz qjs_debug ../../test.js
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -54,7 +54,7 @@ jobs:
     - name: Package
       run: |
         cd build/debugger/Release
-        Compress-Archive -Path qjs_debug.exe, ../../test.js -DestinationPath qjs_debug-windows-x86_64.zip
+        Compress-Archive -Path qjs_debug.exe, ../../../test.js -DestinationPath qjs_debug-windows-x86_64.zip
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -79,7 +79,7 @@ jobs:
     - name: Package
       run: |
         cd build/debugger
-        tar czf qjs_debug-macos-arm64.tar.gz qjs_debug ../test.js
+        tar czf qjs_debug-macos-arm64.tar.gz qjs_debug ../../test.js
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
