@@ -18,6 +18,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
@@ -26,17 +29,20 @@ jobs:
     - name: Package Linux
       run: |
         cd artifacts/qjs_debug-linux
-        tar czf ../qjs_debug-linux-x86_64.tar.gz qjs_debug
+        cp ../../test.js .
+        tar czf ../qjs_debug-linux-x86_64.tar.gz qjs_debug test.js
 
     - name: Package Windows
       run: |
         cd artifacts/qjs_debug-windows
-        zip ../qjs_debug-windows-x86_64.zip qjs_debug.exe
+        cp ../../test.js .
+        zip ../qjs_debug-windows-x86_64.zip qjs_debug.exe test.js
 
     - name: Package macOS
       run: |
         cd artifacts/qjs_debug-macos
-        tar czf ../qjs_debug-macos-arm64.tar.gz qjs_debug
+        cp ../../test.js .
+        tar czf ../qjs_debug-macos-arm64.tar.gz qjs_debug test.js
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
