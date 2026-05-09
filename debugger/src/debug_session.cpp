@@ -780,9 +780,10 @@ json::Value DebugSession::evaluate_on_call_frame(const std::string& call_frame_i
 //
 int DebugSession::debug_trace_handler(JSContext *ctx,
                                const char *filename, const char *funcname,
-                               int line, int col) {
+                               int line, int col,
+                               void *opaque) {
 
-    auto* self = static_cast<DebugSession*>(JS_GetContextOpaque(ctx));
+    auto* self = static_cast<DebugSession*>(opaque);
     if (!self->enabled_.load()) return 0;
     if (!filename || line <= 0) return 0;
 

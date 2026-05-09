@@ -88,7 +88,8 @@ public:
     // --- QuickJS debug trace handler (OP_debug callback) ---
     static int debug_trace_handler(JSContext *ctx,
                           const char *filename, const char *funcname,
-                          int line, int col);
+                          int line, int col,
+                          void *opaque);
 
     // --- Wait for debugger ---
     void set_pause_on_start(bool v) { pause_on_start_ = v; }
