@@ -209,28 +209,6 @@ Extended QuickJS APIs this project depends on (declared in `quickjs.h`):
 
 All debug APIs are always available — no compile-time flags required.
 
-```c
-// Debug trace callback — invoked at statement boundaries when the interpreter
-// hits an OP_debug opcode. Return 0 to continue, non-zero to raise exception.
-typedef int JSDebugTraceFunc(JSContext *ctx,
-                             const char *filename, const char *funcname,
-                             int line, int col);
-
-// Set (or clear) the debug trace handler. When the interpreter hits an
-// OP_debug opcode and a handler is set, it is called. Pass NULL to disable.
-// Works with any context (JS_NewContext, JS_NewContextRaw, etc.).
-void JS_SetDebugTraceHandler(JSContext *ctx, JSDebugTraceFunc *cb);
-
-// Get current call stack depth
-int JS_GetStackDepth(JSContext *ctx);
-
-// Get local variables at a given stack frame level
-JSDebugLocalVar *JS_GetLocalVariablesAtLevel(JSContext *ctx, int level, int *pcount);
-
-// Free the variable array returned by JS_GetLocalVariablesAtLevel
-void JS_FreeLocalVariables(JSContext *ctx, JSDebugLocalVar *vars, int count);
-```
-
 ## Notes
 
 - The `quickjs/` directory contains a modified fork of [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) with the debug interface additions ([PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)). `OP_debug` opcodes are always emitted; the runtime cost is virtually zero when no handler is set.

@@ -211,27 +211,6 @@ Waiting for debugger to connect...
 
 所有调试 API 始终可用，无需编译时宏控制。
 
-```c
-// 调试跟踪回调 — 当解释器执行到 OP_debug 操作码时在语句边界触发。
-// 返回 0 继续执行，非零则抛出异常。
-typedef int JSDebugTraceFunc(JSContext *ctx,
-                             const char *filename, const char *funcname,
-                             int line, int col);
-
-// 设置（或清除）调试跟踪处理程序。当解释器执行到 OP_debug 操作码且已设置处理程序时，
-// 将调用该处理程序。传入 NULL 则禁用。适用于任何上下文（JS_NewContext、JS_NewContextRaw 等）。
-void JS_SetDebugTraceHandler(JSContext *ctx, JSDebugTraceFunc *cb);
-
-// 获取当前调用栈深度
-int JS_GetStackDepth(JSContext *ctx);
-
-// 获取指定栈帧层级的局部变量
-JSDebugLocalVar *JS_GetLocalVariablesAtLevel(JSContext *ctx, int level, int *pcount);
-
-// 释放 JS_GetLocalVariablesAtLevel 返回的变量数组
-void JS_FreeLocalVariables(JSContext *ctx, JSDebugLocalVar *vars, int count);
-```
-
 ## 注意事项
 
 - `quickjs/` 目录包含 [quickjs-ng/quickjs](https://github.com/quickjs-ng/quickjs) 的修改版本，增加了调试接口（[PR #1421](https://github.com/quickjs-ng/quickjs/pull/1421)）。`OP_debug` 操作码始终发射，未设置处理程序时运行时开销几乎为零。
